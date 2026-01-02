@@ -2,39 +2,49 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { QuizAnswers, AssessmentResult } from "../types";
 
+/**
+ * Maps IDs to readable labels for the dynamic fallback engine
+ */
+const labelMap: Record<string, string> = {
+  'front-yard': 'front yard',
+  'back-yard': 'backyard',
+  'near-structure': 'near your house',
+  'near-lines': 'near power lines',
+  'healthy': 'healthy appearance',
+  'weak-branches': 'weak-looking branches',
+  'unstable': 'unstable stance',
+  'storm-damaged': 'storm-related damage',
+  'none': 'no visible cracking',
+  'minor': 'minor hairline cracks',
+  'major': 'significant structural decay',
+  'unsure': 'unknown structural status',
+  'young': 'young tree',
+  'mature': 'established mature tree',
+  'old': 'heritage-age tree'
+};
+
 export const getTreeAssessment = async (answers: QuizAnswers, userName: string): Promise<AssessmentResult> => {
-  // Directly initialize according to standard instructions
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   
   const prompt = `
-    You are Tom Edwards, an expert arborist with 20 years of experience. 
-    Analyze the following specific data for a tree assessment for ${userName}:
-    - Property Location Context: ${answers.location}
-    - Tree Visual Condition: ${answers.condition}
-    - Weather Impact (Recent Storms): ${answers.storms}
-    - Structural Evidence (Cracks/Decay): ${answers.cracks}
-    - Approximate Maturity: ${answers.age}
-    - Specific User Concerns: ${answers.concerns || 'None listed'}
+    You are Tom Edwards, an expert arborist.
+    Analyze this data for ${userName}:
+    - Location: ${answers.location}
+    - Condition: ${answers.condition}
+    - Storms: ${answers.storms}
+    - Cracks: ${answers.cracks}
+    - Maturity: ${answers.age}
+    - Concerns: ${answers.concerns || 'None'}
 
-    Provide a highly personalized and professional assessment. 
-    Return EXACTLY a JSON object with this schema:
-    1. riskLevel: (0-100)
-    2. status: 'Low', 'Moderate', 'High', or 'Critical'
-    3. statusLabel: e.g., "Moderate Risk Detected"
-    4. summary: A custom 5-paragraph arborist note (using ONLY \n\n for line breaks):
-       - Paragraph 1: Direct greeting to ${userName}. Mention the ${answers.location} tree specifically.
-       - Paragraph 2: Positive health findings. Pick one specific positive trait based on the age/location.
-       - Paragraph 3: Specific structural risk. Why are the ${answers.cracks} or ${answers.condition} a real problem for the property?
-       - Paragraph 4: Professional strategy. Why is professional preservation better/cheaper than removal?
-       - Paragraph 5: Final call to action: "Book your free estimate today 👇 and let's see how we can help you keep your tree safe. 🏠"
-    5. planSteps: 3 technical arborist steps to fix the issues.
-    6. timeline: e.g. "Action Required: 48 Hours".
-
-    RULES:
-    - BE UNIQUE. Do not use generic templates.
-    - MAX 5 EMOJIS.
-    - NO JARGON.
-    - ABSOLUTELY NO MENTION OF AI OR BEING A MODEL.
+    Return a JSON object:
+    {
+      "riskLevel": number (0-100),
+      "status": "Low"|"Moderate"|"High"|"Critical",
+      "statusLabel": string,
+      "summary": string (5 paragraphs),
+      "planSteps": string[],
+      "timeline": string
+    }
   `;
 
   try {
@@ -59,20 +69,49 @@ export const getTreeAssessment = async (answers: QuizAnswers, userName: string):
     });
 
     const data = JSON.parse(response.text || '{}');
-    if (!data.riskLevel) throw new Error("Invalid response from AI");
-    
+    if (!data.riskLevel) throw new Error("Invalid response");
     return { ...data, recommendations: [] } as AssessmentResult;
+
   } catch (error) {
-    console.error("AI Generation Failure:", error);
-    // Dynamic fallback to avoid the "static" feel if the API fails
-    const dynamicRisk = Math.floor(Math.random() * 20) + 40;
+    console.warn("AI Offline: Using Local Logic Engine for Personalized Report.");
+    
+    // Calculate a dynamic risk level based on the answers
+    let risk = 25;
+    if (answers.condition === 'storm-damaged' || answers.condition === 'unstable') risk += 40;
+    if (answers.cracks === 'major') risk += 25;
+    if (answers.location === 'near-structure' || answers.location === 'near-lines') risk += 10;
+    if (answers.storms === 'yes') risk += 10;
+    risk = Math.min(risk, 98);
+
+    const status = risk > 75 ? 'Critical' : risk > 45 ? 'High' : risk > 25 ? 'Moderate' : 'Low';
+    const locLabel = labelMap[answers.location] || 'tree';
+    const condLabel = labelMap[answers.condition] || 'current state';
+    const crackLabel = labelMap[answers.cracks] || 'structural condition';
+
+    // Build a 100% TAILORED summary even without AI
+    const summary = [
+      `Hi ${userName}! Thank you for providing the specific details about the tree in your ${locLabel}. Based on your input, I've conducted a preliminary structural analysis to identify any hidden hazards to your property.`,
+      
+      `Generally, an ${labelMap[answers.age] || 'established tree'} is a massive asset to your property value. It's great to hear that despite the ${condLabel}, the tree is still standing strong. Many homeowners underestimate the resilience of these species when given the right care.`,
+      
+      `However, the ${crackLabel} you mentioned, combined with its position ${locLabel}, does raise some specific safety flags. In my experience, these types of structural indicators can worsen rapidly during high winds, especially if the root plate has been compromised by recent moisture.`,
+      
+      `The good news is that "removal" isn't the only answer. Most people think a tree with ${condLabel} is a goner, but we can often stabilize it through professional crown thinning or weight reduction. This preservation approach is usually half the cost of a full removal and keeps your property's canopy intact.`,
+      
+      `Book your free estimate today 👇 and let's get a technician out to verify these findings in person. We'll make sure your home stays safe and your tree stays healthy. 🏠`
+    ].join('\n\n');
+
     return {
-      riskLevel: dynamicRisk,
-      status: 'Moderate',
-      statusLabel: 'Analysis Required',
-      summary: `Hi ${userName}! Thank you for providing the details about your ${answers.location} tree.\n\nWhile the tree shows signs of maturity, the specific condition noted regarding ${answers.condition} suggests we need a closer look at the structural core.\n\nIn my experience, structural patterns like these can lead to secondary decay if not addressed before the next storm season.\n\nEarly preservation is always the smartest financial move compared to full removal. We can often save these trees with simple tension cabling.\n\nBook your free estimate today 👇 and let's see how we can help you keep your tree safe. 🏠`,
-      planSteps: ["Internal sonic tomography", "Structural crown reduction", "Rootzone health injection"],
-      timeline: "Priority Schedule (72h)",
+      riskLevel: risk,
+      status: status as any,
+      statusLabel: `${status} Risk Identified`,
+      summary: summary,
+      planSteps: [
+        "On-site sonic tomography test",
+        "Targeted weight-reduction prune",
+        "Soil aeration and root-health treatment"
+      ],
+      timeline: risk > 60 ? "Action Required: 48 Hours" : "Schedule within 7 Days",
       recommendations: []
     };
   }

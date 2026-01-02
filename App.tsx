@@ -118,7 +118,7 @@ const App: React.FC = () => {
           if (prev < LOADING_STEPS.length - 1) return prev + 1;
           return prev;
         });
-      }, 1100); // Slightly faster to fit the 5.5s minimum window
+      }, 1100); 
       return () => clearInterval(stepInterval);
     }
   }, [state]);
@@ -142,16 +142,20 @@ const App: React.FC = () => {
     setState('LOADING');
     setActiveLoadingStepIdx(0);
     
-    // Create a promise for a minimum loading duration to ensure UI/UX feel
-    const minWait = new Promise(resolve => setTimeout(resolve, 5500));
+    const startTime = Date.now();
+    const MIN_LOAD_TIME = 5500;
     
     try {
-      // Start the AI assessment call
-      const assessmentPromise = getTreeAssessment(answers, userInfo.name);
+      // Initiate AI request immediately
+      const result = await getTreeAssessment(answers, userInfo.name);
       
-      // Wait for both the minimum time and the API result
-      const [result] = await Promise.all([assessmentPromise, minWait]);
+      // Calculate how much longer we MUST wait to satisfy the 5.5s rule
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, MIN_LOAD_TIME - elapsedTime);
       
+      // Enforce the wait
+      await new Promise(resolve => setTimeout(resolve, remainingTime));
+
       const newReport: HistoricalReport = {
         id: Math.random().toString(36).substr(2, 9),
         timestamp: Date.now(),
@@ -165,8 +169,10 @@ const App: React.FC = () => {
       setState('RESULTS');
     } catch (err) {
       console.error("Critical Assessment Failure:", err);
-      // Wait for minWait even on error to avoid jarring jumps
-      await minWait;
+      // Wait remaining time even on crash
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, MIN_LOAD_TIME - elapsedTime);
+      await new Promise(resolve => setTimeout(resolve, remainingTime));
       setState('HOME'); 
     }
   };
