@@ -118,7 +118,7 @@ const App: React.FC = () => {
           if (prev < LOADING_STEPS.length - 1) return prev + 1;
           return prev;
         });
-      }, 1600);
+      }, 1100); // Slightly faster to fit the 5.5s minimum window
       return () => clearInterval(stepInterval);
     }
   }, [state]);
@@ -142,8 +142,15 @@ const App: React.FC = () => {
     setState('LOADING');
     setActiveLoadingStepIdx(0);
     
+    // Create a promise for a minimum loading duration to ensure UI/UX feel
+    const minWait = new Promise(resolve => setTimeout(resolve, 5500));
+    
     try {
-      const result = await getTreeAssessment(answers, userInfo.name);
+      // Start the AI assessment call
+      const assessmentPromise = getTreeAssessment(answers, userInfo.name);
+      
+      // Wait for both the minimum time and the API result
+      const [result] = await Promise.all([assessmentPromise, minWait]);
       
       const newReport: HistoricalReport = {
         id: Math.random().toString(36).substr(2, 9),
@@ -157,7 +164,9 @@ const App: React.FC = () => {
       setHistory(prev => [newReport, ...prev]);
       setState('RESULTS');
     } catch (err) {
-      console.error(err);
+      console.error("Critical Assessment Failure:", err);
+      // Wait for minWait even on error to avoid jarring jumps
+      await minWait;
       setState('HOME'); 
     }
   };
