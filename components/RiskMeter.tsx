@@ -32,8 +32,6 @@ const RiskMeter: React.FC<RiskMeterProps> = ({ value, statusLabel }) => {
     requestAnimationFrame(animate);
   }, [value]);
 
-  const rotation = -90 + (displayValue / 100) * 180;
-
   const getStatusStyle = () => {
     if (value <= 30) return 'bg-emerald-500 text-white border-emerald-600';
     if (value <= 70) return 'bg-amber-400 text-amber-900 border-amber-500';
@@ -41,20 +39,20 @@ const RiskMeter: React.FC<RiskMeterProps> = ({ value, statusLabel }) => {
   };
 
   return (
-    <div className="flex flex-col items-center w-full max-w-[280px]">
+    <div className="flex flex-col items-center w-full max-w-[220px]">
       <div className="flex flex-col items-center mb-1 relative z-10">
-        <div className={`px-4 py-1 rounded-full border shadow-sm font-black text-[10px] uppercase tracking-[0.2em] mb-2 transition-all duration-700 ${getStatusStyle()}`}>
+        <div className={`px-4 py-1 rounded-full border shadow-sm font-black text-[9px] uppercase tracking-[0.1em] mb-4 transition-all duration-700 ${getStatusStyle()}`}>
           {statusLabel}
         </div>
-        <div className="flex items-baseline gap-1">
-          <span className="text-6xl md:text-7xl font-[1000] text-[#1a365d] tracking-tighter tabular-nums leading-none">
+        <div className="flex items-baseline gap-1 mb-2">
+          <span className="text-6xl font-black text-[#1a365d] tracking-tighter tabular-nums leading-none">
             {displayValue}
           </span>
-          <span className="text-2xl font-black text-slate-300">%</span>
+          <span className="text-xl font-black text-slate-300">%</span>
         </div>
       </div>
 
-      <div className="relative w-full h-28 flex items-start justify-center overflow-visible mt-2">
+      <div className="relative w-full h-24 flex items-start justify-center overflow-visible">
         <svg viewBox="0 0 200 110" className="w-full">
           <defs>
             <linearGradient id="meterGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -70,8 +68,8 @@ const RiskMeter: React.FC<RiskMeterProps> = ({ value, statusLabel }) => {
           <path
             d="M30 100 A 70 70 0 0 1 170 100"
             fill="none"
-            stroke="#f8fafc"
-            strokeWidth="16"
+            stroke="#f1f5f9"
+            strokeWidth="14"
             strokeLinecap="round"
           />
           
@@ -79,18 +77,18 @@ const RiskMeter: React.FC<RiskMeterProps> = ({ value, statusLabel }) => {
             d="M30 100 A 70 70 0 0 1 170 100"
             fill="none"
             stroke="url(#meterGradient)"
-            strokeWidth="16"
+            strokeWidth="14"
             strokeLinecap="round"
           />
 
           <g style={{ 
             transform: `rotate(${-90 + (displayValue / 100) * 180}deg)`, 
             transformOrigin: '100px 100px',
-            transition: 'transform 0.1s linear' // Follow the counter closely
+            transition: 'transform 0.1s linear'
           }}>
-            <path d="M100 100 L100 45" stroke="#1a365d" strokeWidth="6" strokeLinecap="round" />
-            <circle cx="100" cy="100" r="9" fill="#1a365d" />
-            <circle cx="100" cy="100" r="3.5" fill="white" />
+            <path d="M100 100 L100 45" stroke="#1a365d" strokeWidth="5" strokeLinecap="round" />
+            <circle cx="100" cy="100" r="8" fill="#1a365d" />
+            <circle cx="100" cy="100" r="3" fill="white" />
           </g>
         </svg>
       </div>
